@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# Conda / virtual env
+.env/
+.venv/
+
+# Large datasets
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Outputs
+outputs/*
+!outputs/.gitkeep
+
+# Model checkpoints
+*.pth
+*.pt
+*.ckpt
+
+# Hugging Face cache
+.cache/
+hf_cache/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
