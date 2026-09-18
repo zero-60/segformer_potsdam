@@ -1,0 +1,22 @@
+{
+  "stage": "Stage 9",
+  "artifact": "formal_rgb_trainer",
+  "version": "1.0-design",
+  "status": "implementation_pending_audit",
+  "requirements": [
+    "Preserve Stage 8 frozen training engine behavior",
+    "No dataset protocol changes",
+    "No dataloader protocol changes",
+    "No evaluation protocol changes",
+    "No model protocol changes"
+  ],
+  "git_archive_reminder": {
+    "required": true,
+    "recommended_points": [
+      "after trainer implementation",
+      "after smoke PASS",
+      "before Stage 9 freeze",
+      "before Stage 10 formal training"
+    ]
+  }
+}
