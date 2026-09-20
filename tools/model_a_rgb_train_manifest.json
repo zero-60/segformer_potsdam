@@ -1,0 +1,15 @@
+{
+  "stage": "Stage 10",
+  "artifact": "Model_A_RGB_baseline_formal_training",
+  "version": "1.0",
+  "status": "design_implementation_pending",
+  "scope": "100 epoch RGB-only formal baseline training",
+  "forbidden_changes": [
+    "dataset_protocol",
+    "dataloader_protocol",
+    "evaluation_protocol",
+    "model_a_rgb_protocol",
+    "training_protocol"
+  ],
+  "output_dir": "outputs/training/model_a_rgb"
+}

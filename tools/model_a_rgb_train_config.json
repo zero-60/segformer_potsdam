@@ -1,0 +1,7 @@
+{
+  "epochs": 100,
+  "batch_size": 2,
+  "gradient_accumulation_steps": 8,
+  "lr": 6e-05,
+  "weight_decay": 0.01
+}
