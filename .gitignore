@@ -1,0 +1,7 @@
+# 忽略赛题数据集和各轮实验的输出结果
+real_attachments/
+round*_outputs/
+
+# 忽略 Python 缓存
+__pycache__/
+*.pyc
