@@ -1,0 +1,212 @@
+{
+  "protocol_version": "Joint RGB+NIR Robust-4 Protocol v1",
+  "module_version": "1.0.0",
+  "model_id": "B2_RGBNIR_FIXED1_JOINT_ROBUST4",
+  "model_name": "SegFormer-B2 RGB+NIR Fixed g=1.0 Joint Robust-4",
+  "variant": "fixed",
+  "backbone": "SegFormer-B2",
+  "input_modalities": [
+    "RGB",
+    "NIR"
+  ],
+  "nir_used": true,
+  "dual_encoder": true,
+  "fusion": "fixed RGB-anchored NIR residual",
+  "fusion_rule": "F_i = F_RGB_i + 1.0 * Adapter_i(F_NIR_i)",
+  "fixed_nir_strength": 1.0,
+  "quality_gate": false,
+  "gate_type": null,
+  "gate_supervision": false,
+  "gate_training": null,
+  "regime": "joint_robust4",
+  "epochs": 120,
+  "batch_size": 1,
+  "grad_accum_steps": 16,
+  "effective_batch_size_nominal": 16,
+  "base_lr": 3e-05,
+  "new_lr": 0.0003,
+  "weight_decay": 0.01,
+  "warmup_steps": 500,
+  "grad_clip": 1.0,
+  "loss": {
+    "ce_weight": 1.0,
+    "lovasz_weight": 0.5,
+    "gate_bce_weight": 0.0
+  },
+  "joint_corruption_training": {
+    "enabled": true,
+    "version": "Joint RGB+NIR Robust-4 v1",
+    "clean_warmup_epochs": 10,
+    "ramp_epochs": 20,
+    "max_probability": 0.5,
+    "families": [
+      "gaussian_noise",
+      "gaussian_blur",
+      "underexposure",
+      "fog"
+    ],
+    "family_sampling": "uniform",
+    "severity_sampling": "continuous Uniform[0.10,1.00]",
+    "event_coupling": "RGB and NIR share family and base severity",
+    "noise": {
+      "rgb_sigma_255": [
+        5.0,
+        50.0
+      ],
+      "nir_sigma_255": [
+        5.0,
+        50.0
+      ],
+      "random_realizations": "independent by modality/channel"
+    },
+    "blur_sigma": [
+      0.5,
+      4.0
+    ],
+    "underexposure_alpha": [
+      0.94,
+      0.4
+    ],
+    "fog": {
+      "rgb_mean_transmission": "0.90 - 0.50 * severity",
+      "shared_spatial_field": true,
+      "nir_transmission": "1 - nir_fog_scatter_ratio * (1 - t_rgb)",
+      "nir_fog_scatter_ratio": 0.65,
+      "physical_status": "controlled approximation; not radiative-transfer calibration"
+    },
+    "rgb": "degraded",
+    "nir": "degraded",
+    "labels": "unchanged",
+    "normalization": {
+      "rgb": "ImageNet mean/std",
+      "nir_mean": 0.3854390870128298,
+      "nir_std": 0.14614233541588012
+    },
+    "implementation_source": "tools/joint_multimodal_robust4.py"
+  },
+  "optimizer": {
+    "pretrained_decay": {
+      "parameters": 51364608,
+      "lr": 3e-05,
+      "weight_decay": 0.01
+    },
+    "pretrained_no_decay": {
+      "parameters": 172032,
+      "lr": 3e-05,
+      "weight_decay": 0.0
+    },
+    "new_decay": {
+      "parameters": 199168,
+      "lr": 0.0003,
+      "weight_decay": 0.01
+    },
+    "new_no_decay": {
+      "parameters": 1302,
+      "lr": 0.0003,
+      "weight_decay": 0.0
+    }
+  },
+  "updates_per_epoch": 72,
+  "total_update_steps": 8640,
+  "seed": 20260917,
+  "data_seed": 20260917,
+  "amp": true,
+  "gradient_checkpointing_requested": true,
+  "gradient_checkpointing_status": {
+    "rgb_encoder": false,
+    "nir_encoder": false
+  },
+  "device": "cuda",
+  "data_cache_dir": "/root/autodl-tmp/projects/segformer_potsdam/data/processed/potsdam/train_npy_mmap_cache_v1",
+  "model_meta": {
+    "variant": "M2",
+    "model_id": "B2_RGBNIR_FIXED_ROBUST4",
+    "name": "SegFormer-B2 RGB+NIR Fixed Residual Fusion Robust-4",
+    "protocol_version": "B2 RGBNIR Fixed Residual Robust-4 Protocol v1",
+    "checkpoint": "nvidia/segformer-b2-finetuned-ade-512-512",
+    "resolved_revision": "de01bae28967510f9ddd496c60a969357195400c",
+    "backbone": "SegFormer-B2",
+    "num_labels": 6,
+    "class_names": [
+      "Impervious surfaces",
+      "Building",
+      "Low vegetation",
+      "Tree",
+      "Car",
+      "Clutter/background"
+    ],
+    "hidden_sizes": [
+      64,
+      128,
+      320,
+      512
+    ],
+    "decoder_hidden_size": 768,
+    "input_modalities": [
+      "RGB",
+      "NIR"
+    ],
+    "dual_encoder": true,
+    "fusion": "RGB-anchored fixed-strength NIR residual fusion",
+    "fusion_rule": "F_i = F_RGB_i + 0.5 * Adapter_i(F_NIR_i)",
+    "fixed_nir_strength": 1.0,
+    "quality_gate": false,
+    "gate_supervision": false,
+    "nir_encoder_initialization": {
+      "method": "mean_of_pretrained_rgb_patch_embed_kernels",
+      "old_in_channels": 3,
+      "new_in_channels": 1,
+      "kernel_size": [
+        7,
+        7
+      ],
+      "out_channels": 64
+    },
+    "residual_adapter_audit": {
+      "all_zero_output_initialized": true,
+      "stages": [
+        {
+          "scale": 1,
+          "channels": 64,
+          "bottleneck": 32,
+          "zero_output_initialized": true
+        },
+        {
+          "scale": 2,
+          "channels": 128,
+          "bottleneck": 32,
+          "zero_output_initialized": true
+        },
+        {
+          "scale": 3,
+          "channels": 320,
+          "bottleneck": 80,
+          "zero_output_initialized": true
+        },
+        {
+          "scale": 4,
+          "channels": 512,
+          "bottleneck": 128,
+          "zero_output_initialized": true
+        }
+      ]
+    },
+    "loading_info": {
+      "mismatched_keys": [
+        "decode_head.classifier.weight",
+        "decode_head.classifier.bias"
+      ],
+      "missing_keys": [],
+      "unexpected_keys": []
+    },
+    "parameters": {
+      "total": 51737110,
+      "trainable": 51737110,
+      "frozen": 0
+    },
+    "semantic_loss_ignore_index": 255,
+    "experiment_model_id": "B2_RGBNIR_FIXED1_JOINT_ROBUST4",
+    "experiment_model_name": "SegFormer-B2 RGB+NIR Fixed g=1.0 Joint Robust-4",
+    "experiment_protocol_version": "Joint RGB+NIR Robust-4 Protocol v1"
+  }
+}

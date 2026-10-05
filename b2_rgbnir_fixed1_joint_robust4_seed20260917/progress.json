@@ -1,0 +1,26 @@
+{
+  "status": "running",
+  "updated_at_local": "2026-10-05 13:54:50 CST",
+  "training_started_at_local": "2026-10-05 13:52:25 CST",
+  "epoch": 1,
+  "epochs": 120,
+  "batch": 885,
+  "batches_per_epoch": 1152,
+  "epoch_progress_pct": 76.82291666666666,
+  "total_progress_pct": 0.6401909722222222,
+  "loss": 2.080598831176758,
+  "ce": 1.6743186712265015,
+  "lovasz": 0.8125600814819336,
+  "base_lr": 3.36e-06,
+  "new_lr": 3.36e-05,
+  "corruption_probability": 0.0,
+  "cuda_memory": "0.84/2.53G",
+  "elapsed_seconds": 144.9068772038445,
+  "eta_seconds": 21446.330428010737,
+  "estimated_finish_local": "2026-10-05 19:52:16 CST",
+  "eta_calibration": {
+    "observed_batches": 885,
+    "required_batches": 20,
+    "ema_batch_seconds": 0.1561379667868715
+  }
+}
