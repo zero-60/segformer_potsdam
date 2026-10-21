@@ -31,12 +31,27 @@ DIRS = {
     "change_label": "labels_change",
 }
 SUFFIX = {".tif", ".tiff", ".png", ".jpg", ".jpeg", ".jp2"}
-NONKEY = {"2006", "2012", "image", "images", "img", "label", "labels", "land",
+NONKEY = {"2005", "2006", "2012", "image", "images", "img", "label", "labels", "land",
           "cover", "landcover", "change", "mask", "gt", "rgb", "patch",
-          "ortho", "semantic", "lcm", "ground", "truth"}
+          "ortho", "semantic", "lcm", "ground", "truth", "0m50", "e080"}
 
 
 def canonical(stem: str) -> str:
+    # HRSCD's five archives do not use one identical filename convention.
+    # In particular, images_2006 contains names such as
+    #   14-2005-0415-6895-LA93.tif
+    # while the 2012 image and all labels use names such as
+    #   14-2012-0415-6895-LA93-0M50-E080.tif
+    # The stable tile identity is zone + tile row + tile column + projection;
+    # the acquisition year and resolution suffix must not be used for pairing.
+    m = re.match(
+        r"^(?P<zone>\d+)-20\d{2}-(?P<row>\d+)-(?P<col>\d+)-(?P<proj>la93)(?:-|$)",
+        stem.casefold(),
+    )
+    if m:
+        return "{}_{}_{}_{}".format(
+            m.group("zone"), m.group("row"), m.group("col"), m.group("proj")
+        )
     tokens = re.findall(r"[a-z0-9]+", stem.casefold())
     tokens = [s for s in tokens if s not in NONKEY]
     return "_".join(tokens) or stem.casefold()

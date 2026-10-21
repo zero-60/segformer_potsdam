@@ -38,3 +38,21 @@ hf_cache/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local datasets
+data/HRSCD/
+
+# Experiment visualization outputs
+robust4_vis/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Training artifacts
+*.pth
+*.pt
+*.ckpt
+
+# Logs
+*.log

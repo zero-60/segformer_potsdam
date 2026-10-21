@@ -45,9 +45,10 @@ ROLE_NAMES = {
     "change_label": "binary change",
 }
 STEM_IGNORE = {
-    "2006", "2012", "image", "images", "img", "rgb", "label", "labels",
+    "2005", "2006", "2012", "image", "images", "img", "rgb", "label", "labels",
     "land", "cover", "landcover", "landcoverage", "lc", "lcm",
     "change", "changes", "mask", "masks", "gt", "semantic", "segmentation",
+    "0m50", "e080",
     "original", "ortho", "patch"
 }
 HRSCD_CLASS_MAP = {
@@ -104,7 +105,19 @@ def auto_role(path: Path, root: Path) -> str | None:
 
 
 def canonical_id(path: Path) -> str:
-    # Match, for example: tile_001_2006.tif / land_cover_tile_001_2012.tif
+    # HRSCD archive-specific names differ between 2006 and 2012.  For example:
+    #   14-2005-0415-6895-LA93.tif
+    #   14-2012-0415-6895-LA93-0M50-E080.tif
+    # They refer to the same tile.  Pair by stable tile coordinates and
+    # projection, ignoring acquisition year and resolution suffix.
+    m = re.match(
+        r"^(?P<zone>\d+)-20\d{2}-(?P<row>\d+)-(?P<col>\d+)-(?P<proj>la93)(?:-|$)",
+        path.stem.casefold(),
+    )
+    if m:
+        return "{}_{}_{}_{}".format(
+            m.group("zone"), m.group("row"), m.group("col"), m.group("proj")
+        )
     tokens = re.findall(r"[a-z0-9]+", path.stem.casefold())
     filtered = [x for x in tokens if x not in STEM_IGNORE]
     return "_".join(filtered) or path.stem.casefold()

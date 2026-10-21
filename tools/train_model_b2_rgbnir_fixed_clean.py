@@ -126,6 +126,17 @@ def strength_tag(value: float) -> str:
     return "g" + text.replace("-", "m").replace(".", "p")
 
 
+
+
+def format_duration(seconds: float) -> str:
+    """Format a non-negative duration as HH:MM:SS for progress/ETA output."""
+    if not math.isfinite(seconds) or seconds < 0:
+        return "--:--:--"
+    total_seconds = int(round(seconds))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
 def default_output_dir(strength: float, seed: int) -> Path:
     return (
         PROJECT_ROOT
@@ -734,13 +745,30 @@ def main() -> None:
             if (batch_index + 1) % x.log_every == 0 or (batch_index + 1) == len(loader):
                 lrs = [float(group["lr"]) for group in optimizer.param_groups]
                 elapsed = time.time() - epoch_started
+                batches_done = batch_index + 1
+                batches_total = len(loader)
+                avg_batch_seconds = elapsed / max(1, batches_done)
+                epoch_eta_seconds = avg_batch_seconds * max(0, batches_total - batches_done)
+
+                run_elapsed = time.time() - training_started
+                run_epochs_total = x.epochs - start_epoch
+                run_progress_epochs = (epoch - start_epoch) + (batches_done / max(1, batches_total))
+                if run_progress_epochs > 0:
+                    run_eta_seconds = (
+                        run_elapsed / run_progress_epochs
+                    ) * max(0.0, run_epochs_total - run_progress_epochs)
+                else:
+                    run_eta_seconds = float("nan")
+
                 print(
                     f"[train] epoch={epoch + 1:03d}/{x.epochs:03d} "
                     f"batch={batch_index + 1:04d}/{len(loader):04d} "
                     f"loss={float(total_loss.detach().item()):.6f} "
                     f"ce={float(ce.detach().item()):.6f} "
                     f"lovasz={float(lovasz.detach().item()):.6f} "
-                    f"step={global_step} lr={lrs} elapsed={elapsed:.1f}s",
+                    f"step={global_step} lr={lrs} elapsed={elapsed:.1f}s "
+                    f"epoch_eta={format_duration(epoch_eta_seconds)} "
+                    f"train_eta={format_duration(run_eta_seconds)}",
                     flush=True,
                 )
 
@@ -798,13 +826,18 @@ def main() -> None:
         }
         write_json_atomic(progress_path, progress)
 
+        completed_run_epochs = epoch - start_epoch + 1
+        remaining_run_epochs = x.epochs - epoch - 1
+        average_epoch_seconds = (time.time() - training_started) / max(1, completed_run_epochs)
+        train_eta_seconds = average_epoch_seconds * max(0, remaining_run_epochs)
         print(
             f"[epoch done] {epoch + 1:03d}/{x.epochs:03d} | "
             f"CE={epoch_record['train_ce']:.6f} | "
             f"Lovasz={epoch_record['train_lovasz_mean']:.6f} | "
             f"Total={epoch_record['train_total_loss_mean']:.6f} | "
             f"residual={[round(float(v), 6) for v in epoch_record['residual_abs_mean_by_scale']]} | "
-            f"seconds={epoch_seconds:.1f} | global_step={global_step}",
+            f"seconds={epoch_seconds:.1f} | train_eta={format_duration(train_eta_seconds)} | "
+            f"global_step={global_step}",
             flush=True,
         )
 

@@ -72,6 +72,17 @@ def strength_tag(value: float) -> str:
     return "g" + text.replace("-", "m").replace(".", "p")
 
 
+
+
+def format_duration(seconds: float) -> str:
+    """Format a non-negative duration as HH:MM:SS for progress/ETA output."""
+    if not math.isfinite(seconds) or seconds < 0:
+        return "--:--:--"
+    total_seconds = int(round(seconds))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
 def write_json_atomic(path: Path, obj: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
@@ -276,8 +287,14 @@ def evaluate_one_tile(
             y=int(item["y"]),
         )
         if (window_offset + 1) % 32 == 0 or (window_offset + 1) == windows_per_tile:
+            windows_done = window_offset + 1
+            window_elapsed = time.time() - started
+            avg_window_seconds = window_elapsed / max(1, windows_done)
+            tile_eta_seconds = avg_window_seconds * max(0, windows_per_tile - windows_done)
             print(
-                f"[eval] tile={tile_id} windows={window_offset + 1:03d}/{windows_per_tile:03d}",
+                f"[eval] tile={tile_id} windows={windows_done:03d}/{windows_per_tile:03d} "
+                f"elapsed={format_duration(window_elapsed)} "
+                f"tile_eta={format_duration(tile_eta_seconds)}",
                 flush=True,
             )
         del rgb, nir, logits, logits_np
@@ -400,10 +417,15 @@ def main() -> None:
         )
         tile_results.append(tile_result)
         global_confusion += np.asarray(tile_result["confusion_matrix"], dtype=np.int64)
+        tiles_done = tile_index + 1
+        eval_elapsed = time.time() - started
+        average_tile_seconds = eval_elapsed / max(1, tiles_done)
+        eval_eta_seconds = average_tile_seconds * max(0, len(dataset.tile_ids) - tiles_done)
         print(
             f"[tile done] {tile_id} | mIoU={tile_result['miou']:.6f} | "
             f"pixel_acc={tile_result['pixel_accuracy']:.6f} | "
-            f"seconds={tile_result['seconds']:.1f}",
+            f"seconds={tile_result['seconds']:.1f} | "
+            f"eval_eta={format_duration(eval_eta_seconds)}",
             flush=True,
         )
 

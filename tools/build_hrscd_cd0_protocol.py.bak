@@ -1,0 +1,297 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Build audited CD0 HRSCD manifest and reproducible project-defined splits.
+
+IMPORTANT: Official dataset describes FIVE DATA PARTS, NOT an official train/val/test split.
+The split generated here is project-defined at ORIGINAL image-pair level (no patch leakage).
+It must be disclosed in reporting and never passed off as an official split.
+
+  python tools/build_hrscd_cd0_protocol.py --root data/HRSCD --output outputs/hrscd_cd0
+  python tools/build_hrscd_cd0_protocol.py --root data/HRSCD --output outputs/hrscd_cd0 --freeze
+
+Never freeze if validation errors; re-running with differing inputs never silently overwrites
+a previously frozen protocol. To change one, explicitly archive the old output directory first.
+"""
+from __future__ import annotations
+import argparse
+import csv
+import datetime as dt
+import hashlib
+import json
+import random
+import re
+import sys
+from collections import Counter, defaultdict
+from pathlib import Path
+
+ROLES = ("t1_image", "t2_image", "t1_label", "t2_label", "change_label")
+DIRS = {
+    "t1_image": "images_2006", "t2_image": "images_2012",
+    "t1_label": "labels_land_cover_2006", "t2_label": "labels_land_cover_2012",
+    "change_label": "labels_change",
+}
+SUFFIX = {".tif", ".tiff", ".png", ".jpg", ".jpeg", ".jp2"}
+NONKEY = {"2006", "2012", "image", "images", "img", "label", "labels", "land",
+          "cover", "landcover", "change", "mask", "gt", "rgb", "patch",
+          "ortho", "semantic", "lcm", "ground", "truth"}
+
+
+def canonical(stem: str) -> str:
+    # HRSCD's five archives do not use one identical filename convention.
+    # In particular, images_2006 contains names such as
+    #   14-2005-0415-6895-LA93.tif
+    # while the 2012 image and all labels use names such as
+    #   14-2012-0415-6895-LA93-0M50-E080.tif
+    # The stable tile identity is zone + tile row + tile column + projection;
+    # the acquisition year and resolution suffix must not be used for pairing.
+    m = re.match(
+        r"^(?P<zone>\d+)-20\d{2}-(?P<row>\d+)-(?P<col>\d+)-(?P<proj>la93)(?:-|$)",
+        stem.casefold(),
+    )
+    if m:
+        return "{}_{}_{}_{}".format(
+            m.group("zone"), m.group("row"), m.group("col"), m.group("proj")
+        )
+    tokens = re.findall(r"[a-z0-9]+", stem.casefold())
+    tokens = [s for s in tokens if s not in NONKEY]
+    return "_".join(tokens) or stem.casefold()
+
+
+def sha256_file(path: Path) -> str:
+    sha=hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda:f.read(1048576),b""):
+            sha.update(chunk)
+    return sha.hexdigest()
+
+
+def metadata(path: Path, is_image: bool) -> dict:
+    try:
+        import rasterio
+        with rasterio.open(path) as ds:
+            d = {"width":ds.width,"height":ds.height,"bands":ds.count,
+                 "dtype":ds.dtypes[0],
+                 "crs":str(ds.crs) if ds.crs else None,
+                 "transform":list(ds.transform)[:6] if ds.crs else None}
+    except ImportError as exc:
+        raise RuntimeError("Install rasterio first: python -m pip install rasterio") from exc
+    if d["width"] < 32 or d["height"] < 32:
+        raise ValueError(f"Unexpectedly small raster: {path} {d}")
+    if is_image:
+        if d["bands"] < 3 or d["dtype"] != "uint8":
+            raise ValueError(f"CD0 expects >=3 RGB uint8 bands: {path}, got {d}")
+    elif d["bands"] != 1:
+        raise ValueError(f"CD0 expects single-band integer mask: {path}, got {d}")
+    return d
+
+
+def sample_mask(path: Path, windowsize: int = 256) -> tuple[set[int], dict[int,int]]:
+    import rasterio
+    import numpy as np
+    from rasterio.windows import Window
+    hist=Counter()
+    with rasterio.open(path) as ds:
+        w=min(windowsize,ds.width)
+        h=min(windowsize,ds.height)
+        offsets=sorted({(0,0),((ds.width-w)//2,(ds.height-h)//2),
+                        (ds.width-w,ds.height-h)})
+        for x,y in offsets:
+            arr=ds.read(1,window=Window(x,y,w,h))
+            values, counts=np.unique(arr,return_counts=True)
+            hist.update({int(v):int(n) for v,n in zip(values,counts)})
+    return set(hist),dict(sorted(hist.items()))
+
+
+def safe_json(obj):
+    return json.dumps(obj,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode("utf-8")
+
+
+def scan(root: Path, label_samples: int) -> tuple[list[dict], dict]:
+    problems, warnings=[],[]
+    buckets={}
+    for role, d in DIRS.items():
+        folder=root/d
+        if not folder.is_dir():
+            problems.append(f"Missing extracted directory: {folder}")
+            buckets[role]={}
+            continue
+        by_id=defaultdict(list)
+        for path in sorted(folder.rglob("*")):
+            if path.is_file() and path.suffix.lower() in SUFFIX:
+                by_id[canonical(path.stem)].append(path)
+        buckets[role]=by_id
+    keys=sorted(set().union(*(set(x) for x in buckets.values())))
+    manifest=[]
+    missing_examples, duplicates=[],[]
+    for key in keys:
+        missing=[r for r in ROLES if not buckets[r].get(key)]
+        dup=[r for r in ROLES if len(buckets[r].get(key,[]))>1]
+        if missing:
+            missing_examples.append(f"{key}: {missing}")
+        if dup:
+            duplicates.append(f"{key}: {dup}")
+        if missing or dup:
+            continue
+        row={"pair_id":key,**{r:buckets[r][key][0].relative_to(root).as_posix() for r in ROLES}}
+        manifest.append(row)
+    if len(manifest)<3:
+        problems.append(f"Too few complete pairs ({len(manifest)}); need at least 3 for splits.")
+    if missing_examples:
+        problems.append(f"Incomplete pairs {len(missing_examples)}: e.g. {missing_examples[:5]}")
+    if duplicates:
+        problems.append(f"Ambiguous duplicate keys {len(duplicates)}: e.g. {duplicates[:5]}")
+    if not keys:
+        problems.append("Zero raster candidates; source ZIP files may still be unextracted.")
+    if manifest and len(manifest)!=291:
+        warnings.append(f"Original HRSCD advertises 291 pairs; this copy has {len(manifest)} complete pairs. "
+                        "Verify if intentionally using a subset.")
+    all_meta, mismatch, errors=[],[],[]
+    for row in manifest:
+        meta={}
+        try:
+            for r in ROLES:
+                meta[r]=metadata(root/row[r], r in ("t1_image","t2_image"))
+            sizes={(x["width"],x["height"]) for x in meta.values()}
+            if len(sizes)!=1:
+                mismatch.append(f"{row['pair_id']}: sizes={{{', '.join(r+':'+str((m['width'],m['height'])) for r,m in meta.items())}}}")
+            # Any georeferenced pair must share spatial reference. Some TIFF files
+            # have no CRS metadata; don't infer CRS from filenames.
+            geos=[m for m in meta.values() if m.get("crs")]
+            if geos and any(m["crs"] != geos[0]["crs"] or m["transform"] != geos[0]["transform"]
+                            for m in geos):
+                mismatch.append(f"{row['pair_id']}: georeferenced layers do not align.")
+            all_meta.append({"pair_id":row["pair_id"],"shape":next(iter(sizes)) if sizes else None,
+                             "bands":{r:m["bands"] for r,m in meta.items()},
+                             "dtype":{r:m["dtype"] for r,m in meta.items()}})
+        except Exception as exc:
+            errors.append(f"{row['pair_id']}: {type(exc).__name__}: {exc}")
+    if mismatch:
+        problems.append(f"{len(mismatch)} metadata/georeference mismatches. e.g. {mismatch[:5]}")
+    if errors:
+        problems.append(f"{len(errors)} unreadable/wrong-type pairs. e.g. {errors[:5]}")
+    samples={}
+    if not problems:
+        rng=random.Random(20260917)
+        select=rng.sample(manifest,min(label_samples,len(manifest)))
+        for role in ("t1_label","t2_label","change_label"):
+            samples[role]=[]
+            allowed={0,1} if role=="change_label" else set(range(6))
+            for row in select:
+                values,hist=sample_mask(root/row[role])
+                samples[role].append({"pair_id":row["pair_id"],"values":sorted(values),"hist":hist})
+                extra=values-allowed
+                if extra:
+                    problems.append(f"{row['pair_id']} {role}: illegal sampled labels {sorted(extra)}")
+    audit={
+        "root":str(root),"counts":{r:sum(map(len,buckets[r].values())) for r in ROLES},
+        "candidate_keys":len(keys),"complete_pairs":len(manifest),
+        "sampled_label_values":samples,"metadata_examples":all_meta[:8],
+        "problems":problems,"warnings":warnings,
+        "description":"Read-only scan; file stem match and full-image-pair split; does not train",
+    }
+    return manifest,audit
+
+
+def make_splits(manifest: list[dict], seed: int, val: float, test: float) -> list[dict]:
+    if not 0 < val < 1 or not 0 < test < 1 or val+test >= 0.5:
+        raise ValueError("val/test fractions must be positive and sum to <0.5")
+    ids=sorted(r["pair_id"] for r in manifest)
+    if len(ids)!=len(set(ids)):
+        raise ValueError("Duplicate pair IDs")
+    rng=random.Random(seed)
+    rng.shuffle(ids)
+    n=len(ids)
+    ntest=max(1,round(test*n))
+    nval=max(1,round(val*n))
+    if ntest+nval>=n:
+        raise ValueError("Insufficient pairs for train+val+test")
+    lookup={k:("test" if i<ntest else "val" if i<ntest+nval else "train")
+            for i,k in enumerate(ids)}
+    return [{**r,"split":lookup[r["pair_id"]]} for r in sorted(manifest,key=lambda r:r["pair_id"])]
+
+
+def write_manifest(path: Path, rows: list[dict]):
+    with path.open("w",encoding="utf-8-sig",newline="") as f:
+        writer=csv.DictWriter(f, fieldnames=["pair_id","split",*ROLES])
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def main(argv=None):
+    ap=argparse.ArgumentParser()
+    ap.add_argument("--root",type=Path,default=Path("data/HRSCD"))
+    ap.add_argument("--output",type=Path,default=Path("outputs/hrscd_cd0"))
+    ap.add_argument("--seed",type=int,default=20260917)
+    ap.add_argument("--val-fraction",type=float,default=0.15)
+    ap.add_argument("--test-fraction",type=float,default=0.15)
+    ap.add_argument("--label-samples",type=int,default=8)
+    ap.add_argument("--freeze",action="store_true",
+                    help="Write a training protocol and master manifest only if no blocking errors")
+    args=ap.parse_args(argv)
+    root=args.root.expanduser().resolve()
+    out=args.output.resolve()
+    if not root.is_dir():
+        print(f"[ERROR] Missing data dir: {root}",file=sys.stderr)
+        return 2
+    if args.label_samples<1:
+        print("[ERROR] --label-samples must be >=1",file=sys.stderr)
+        return 2
+    try:
+        manifest,audit=scan(root,args.label_samples)
+    except Exception as exc:
+        print(f"[ERROR] Audit failed: {type(exc).__name__}: {exc}",file=sys.stderr)
+        return 2
+    out.mkdir(parents=True,exist_ok=True)
+    audit_path=out/"hrscd_cd0_preflight.json"
+    audit_path.write_text(json.dumps(audit,ensure_ascii=False,indent=2),encoding="utf-8")
+    print(f"[AUDIT] Pairs={audit['complete_pairs']}, problems={len(audit['problems'])}, "
+          f"warnings={len(audit['warnings'])}")
+    for x in audit["problems"]: print("[BLOCK]",x)
+    for x in audit["warnings"]: print("[WARN]",x)
+    print("[AUDIT REPORT]",audit_path)
+    if not args.freeze:
+        print("[NEXT] Review audit; if it has no BLOCK items, rerun with --freeze.")
+        return 2 if audit["problems"] else 0
+    if audit["problems"]:
+        print("[REFUSED] Cannot freeze protocol until all BLOCK items are fixed.")
+        return 2
+    try:
+        rows=make_splits(manifest,args.seed,args.val_fraction,args.test_fraction)
+    except ValueError as exc:
+        print("[ERROR]",exc,file=sys.stderr)
+        return 2
+    mpath=out/"hrscd_cd0_manifest.csv"
+    ppath=out/"hrscd_cd0_protocol.json"
+    if mpath.exists() or ppath.exists():
+        print("[REFUSED] Frozen manifest/protocol already exists; archive it first rather than overwrite.")
+        return 2
+    write_manifest(mpath, rows)
+    digest=sha256_file(mpath)
+    proto={
+        "protocol_version":"hrscd_cd0_v1",
+        "status":"FROZEN_PROJECT_DEFINED_SPLIT",
+        "dataset":"HRSCD", "official_source":"https://rcdaudt.github.io/hrscd/",
+        "dataset_root":str(root), "manifest_path":str(mpath), "manifest_sha256":digest,
+        "split_policy":"PROJECT-DEFINED: deterministic split at original full-image-pair level; NOT an official train/val/test split",
+        "split_seed":args.seed, "val_fraction_requested":args.val_fraction,
+        "test_fraction_requested":args.test_fraction,
+        "split_counts":dict(Counter(r["split"] for r in rows)),
+        "class_map":{"0":"no information (ignore for land-cover loss and coverage denominator)",
+                     "1":"artificial surfaces","2":"agricultural areas","3":"forests","4":"wetlands","5":"water"},
+        "land_cover_raw_to_train":{"1":0,"2":1,"3":2,"4":3,"5":4,"0":255},
+        "change_map":{"0":"no change","1":"change"},
+        "training_model":"CD0: shared MiT-B2 + four-scale absolute difference + dual land-cover heads + independent binary change head",
+        "rgb_input":"uint8 RGB, scale 1/255 and ImageNet mean/std, same T1/T2",
+        "crop_size":512,"full_pair_split_no_patch_leakage":True,
+        "evaluation_note":"Val/test should use full image pairs, unmodified clean images and global confusion matrices; GeoTIFF inference uses tiled streaming.",
+        "limitation":"Dataset is RGB only; labels are not mining-specific. Class 0 excluded from coverage denominators.",
+    }
+    ppath.write_text(json.dumps(proto,ensure_ascii=False,indent=2),encoding="utf-8")
+    print("[FROZEN]",ppath)
+    print("[MANIFEST]",mpath, "sha256",digest)
+    print("[SPLITS]",proto["split_counts"])
+    return 0
+
+
+if __name__=="__main__":
+    raise SystemExit(main())

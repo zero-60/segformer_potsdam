@@ -1,0 +1,454 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+HRSCD dataset preflight audit (read-only).
+目标：在训练前确认 2006/2012 双时相 RGB 影像、两个年份的完整地类标签、
+独立变化标签的数量、配对、尺寸、编码和现有划分情况。
+不会改动、重命名、裁剪或移动数据文件。
+
+Recommended:
+  python tools/inspect_hrscd_dataset.py --root data/HRSCD --output outputs/dataset_audit/HRSCD
+
+If automatic folder recognition does not match your downloaded variant, explicitly specify
+all five role folders using --t1-images, --t2-images, --t1-labels, --t2-labels,
+--change-labels (relative to --root or absolute paths).
+
+Dependencies: Pillow; rasterio and numpy recommended for sampling large TIFF label pixels.
+  python -m pip install pillow rasterio numpy
+"""
+from __future__ import annotations
+
+import argparse
+from collections import Counter, defaultdict
+import csv
+import json
+import random
+import re
+import sys
+from pathlib import Path
+from typing import Any
+
+SUFFIXES = {".tif", ".tiff", ".png", ".jpg", ".jpeg", ".bmp", ".jp2"}
+ROLES = ("t1_image", "t2_image", "t1_label", "t2_label", "change_label")
+CLI_DIRS = {
+    "t1_image": "t1_images",
+    "t2_image": "t2_images",
+    "t1_label": "t1_labels",
+    "t2_label": "t2_labels",
+    "change_label": "change_labels",
+}
+ROLE_NAMES = {
+    "t1_image": "2006 RGB",
+    "t2_image": "2012 RGB",
+    "t1_label": "2006 land-cover",
+    "t2_label": "2012 land-cover",
+    "change_label": "binary change",
+}
+STEM_IGNORE = {
+    "2006", "2012", "image", "images", "img", "rgb", "label", "labels",
+    "land", "cover", "landcover", "landcoverage", "lc", "lcm",
+    "change", "changes", "mask", "masks", "gt", "semantic", "segmentation",
+    "original", "ortho", "patch"
+}
+HRSCD_CLASS_MAP = {
+    0: "No information (ignore for cover calculations)",
+    1: "Artificial surfaces",
+    2: "Agricultural areas",
+    3: "Forests",
+    4: "Wetlands",
+    5: "Water",
+}
+
+
+def relative_name(path: Path, root: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def has_year(text: str, year: int) -> bool:
+    return bool(re.search(rf"(?<!\d){year}(?!\d)", text))
+
+
+def auto_role(path: Path, root: Path) -> str | None:
+    """Conservative auto-recognition, original five-group HRSCD layout first."""
+    rel = relative_name(path, root).lower()
+    segments = path.relative_to(root).parts[:-1]
+    dir_text = "/".join(segments).lower()
+    all_text = rel.replace("-", "_").lower()
+    # The change-label group is special: some versions include both years in its name.
+    is_change = any(tok in all_text for tok in ("change", "changes", "cd_label", "cd_mask"))
+    is_label = any(tok in all_text for tok in ("label", "mask", "land_cover",
+                                             "landcover", "ground_truth", "groundtruth"))
+    if is_change and (is_label or "change" in dir_text):
+        return "change_label"
+    # Ignore ambiguous paths with both year markers unless they are change masks.
+    y2006, y2012 = has_year(all_text, 2006), has_year(all_text, 2012)
+    if y2006 and y2012:
+        return None
+    if y2006:
+        return "t1_label" if is_label else "t1_image"
+    if y2012:
+        return "t2_label" if is_label else "t2_image"
+    # Additional common already-extracted A/B, T1/T2 variants.
+    # A folder must carry the time indicator; do not infer from file order.
+    dir_parts = [s.lower() for s in segments]
+    if any(s in ("a", "t1", "time1", "before") for s in dir_parts):
+        return "t1_label" if is_label else "t1_image"
+    if any(s in ("b", "t2", "time2", "after") for s in dir_parts):
+        return "t2_label" if is_label else "t2_image"
+    if is_change:
+        return "change_label"
+    return None
+
+
+def canonical_id(path: Path) -> str:
+    # HRSCD archive-specific names differ between 2006 and 2012.  For example:
+    #   14-2005-0415-6895-LA93.tif
+    #   14-2012-0415-6895-LA93-0M50-E080.tif
+    # They refer to the same tile.  Pair by stable tile coordinates and
+    # projection, ignoring acquisition year and resolution suffix.
+    m = re.match(
+        r"^(?P<zone>\d+)-20\d{2}-(?P<row>\d+)-(?P<col>\d+)-(?P<proj>la93)(?:-|$)",
+        path.stem.casefold(),
+    )
+    if m:
+        return "{}_{}_{}_{}".format(
+            m.group("zone"), m.group("row"), m.group("col"), m.group("proj")
+        )
+    tokens = re.findall(r"[a-z0-9]+", path.stem.casefold())
+    filtered = [x for x in tokens if x not in STEM_IGNORE]
+    return "_".join(filtered) or path.stem.casefold()
+
+
+def split_of(path: Path, root: Path) -> str:
+    aliases = {
+        "train": "train", "training": "train",
+        "val": "val", "valid": "val", "validation": "val", "dev": "val",
+        "test": "test", "testing": "test",
+    }
+    try:
+        parts = path.relative_to(root).parts[:-1]
+    except ValueError:
+        parts = path.parts[:-1]
+    detected = {aliases[s.lower()] for s in parts if s.lower() in aliases}
+    return next(iter(detected)) if len(detected) == 1 else ("UNSPLIT" if not detected else "AMBIGUOUS")
+
+
+def image_files(directory: Path) -> list[Path]:
+    return sorted((p for p in directory.rglob("*")
+                   if p.is_file() and p.suffix.casefold() in SUFFIXES),
+                  key=lambda p: str(p).casefold())
+
+
+def select_files(root: Path, args: argparse.Namespace, problems: list[str]):
+    overrides = {role: getattr(args, flag) for role, flag in CLI_DIRS.items()}
+    selected = {role: [] for role in ROLES}
+    uncategorized = []
+    if any(overrides.values()):
+        if not all(overrides.values()):
+            problems.append("手动指定目录时必须同时指定五项：两个时相 RGB、两个地类标签和变化标签。")
+            return selected, uncategorized
+        for role, requested in overrides.items():
+            d = Path(requested).expanduser()
+            if not d.is_absolute():
+                d = root / d
+            if not d.is_dir():
+                problems.append(f"{ROLE_NAMES[role]} 目录不存在：{d}")
+                continue
+            selected[role] = image_files(d)
+    else:
+        for path in image_files(root):
+            role = auto_role(path, root)
+            (selected[role] if role else uncategorized).append(path)
+    return selected, uncategorized
+
+
+def inspect_metadata(path: Path) -> dict[str, Any]:
+    # Rasterio is best for huge remote-sensing TIFFs. Pillow is a portable fallback.
+    try:
+        import rasterio  # type: ignore
+        with rasterio.open(path) as src:
+            transform = tuple(float(v) for v in src.transform)[:6]
+            return {
+                "width": int(src.width), "height": int(src.height),
+                "bands": int(src.count), "dtype": str(src.dtypes[0]),
+                "driver": str(src.driver), "crs": str(src.crs) if src.crs else None,
+                "transform": transform if src.crs else None, "reader": "rasterio",
+            }
+    except (ImportError, OSError, RuntimeError, ValueError):
+        pass
+    try:
+        from PIL import Image
+        Image.MAX_IMAGE_PIXELS = 300_000_000
+        with Image.open(path) as img:
+            return {
+                "width": int(img.width), "height": int(img.height),
+                "bands": len(img.getbands()), "dtype": str(img.mode),
+                "driver": img.format or "unknown", "crs": None,
+                "transform": None, "reader": "Pillow",
+            }
+    except Exception as exc:
+        return {"error": f"{type(exc).__name__}: {exc}"}
+
+
+def label_histogram(path: Path, sample_window: int) -> dict[str, Any]:
+    """Read a few small windows; never claim this is a full-image histogram."""
+    try:
+        import numpy as np  # type: ignore
+        import rasterio  # type: ignore
+        from rasterio.windows import Window  # type: ignore
+        with rasterio.open(path) as ds:
+            if ds.count != 1:
+                return {"warning": f"标签有 {ds.count} 个波段；需确认是否为调色板/多通道标注。"}
+            w, h = min(ds.width, sample_window), min(ds.height, sample_window)
+            if w <= 0 or h <= 0:
+                return {"error": "Empty image dimensions"}
+            locations = sorted({
+                (0, 0),
+                ((ds.width-w)//2, (ds.height-h)//2),
+                (ds.width-w, ds.height-h),
+            })
+            counts: Counter[int] = Counter()
+            for x, y in locations:
+                data = ds.read(1, window=Window(x, y, w, h), masked=True)
+                a = data.compressed() if hasattr(data, "compressed") else data.reshape(-1)
+                values, ns = np.unique(a, return_counts=True)
+                counts.update({int(v): int(n) for v, n in zip(values, ns)})
+            return {"sampled_pixel_histogram": dict(sorted(counts.items())),
+                    "sampled_windows": len(locations), "sample_window": [w, h],
+                    "sampling_note": "partial windows, not the full dataset"}
+    except ImportError:
+        # Never decode 10000x10000 RGB/label images in Pillow just to sample.
+        meta = inspect_metadata(path)
+        if meta.get("error"):
+            return {"error": meta["error"]}
+        if meta["width"] * meta["height"] > 15_000_000:
+            return {"warning": "大图像像素采样已跳过；安装 rasterio numpy 后重跑。"}
+        try:
+            from PIL import Image
+            with Image.open(path) as img:
+                if len(img.getbands()) != 1:
+                    return {"warning": "标签非单波段；需确认编码。"}
+                w, h = min(img.width, sample_window), min(img.height, sample_window)
+                positions = sorted({(0, 0), ((img.width-w)//2, (img.height-h)//2),
+                                    (img.width-w, img.height-h)})
+                counts = Counter()
+                for x, y in positions:
+                    counts.update(int(v) for v in img.crop((x, y, x+w, y+h)).getdata())
+                return {"sampled_pixel_histogram": dict(sorted(counts.items())),
+                        "sampled_windows": len(positions), "sample_window": [w, h],
+                        "sampling_note": "partial windows, not the full dataset"}
+        except Exception as exc:
+            return {"error": f"{type(exc).__name__}: {exc}"}
+    except Exception as exc:
+        return {"error": f"{type(exc).__name__}: {exc}"}
+
+
+def check_one_label(role: str, hist: dict[str, Any], alerts: list[str], name: str):
+    h = hist.get("sampled_pixel_histogram")
+    if not h:
+        return
+    vals = {int(k) for k in h}
+    if role == "change_label":
+        if vals <= {0, 1}:
+            return
+        if vals <= {0, 255}:
+            alerts.append(f"{name}: 变化标签疑似 0/255 编码；须在 protocol 明确映射，不能直接按 0/1 训练。")
+        else:
+            alerts.append(f"{name}: 变化标签采样出现 {sorted(vals)}，与官方 0/1 预期不符，需人工核查。")
+    elif not vals <= set(HRSCD_CLASS_MAP):
+        alerts.append(f"{name}: 地类标签采样出现 {sorted(vals-set(HRSCD_CLASS_MAP))}，请确认是否为原始 HRSCD 编码。")
+
+
+def compute_audit(root: Path, args: argparse.Namespace) -> dict[str, Any]:
+    problems, warnings = [], []
+    selected, uncategorized = select_files(root, args, problems)
+    indexes = {role: defaultdict(list) for role in ROLES}
+    for role, files in selected.items():
+        for path in files:
+            key = (split_of(path, root), canonical_id(path))
+            indexes[role][key].append(path)
+    keys = set().union(*(set(indexes[r]) for r in ROLES))
+    pairs, incomplete, duplicates = [], [], []
+    all_keys = sorted(keys)
+    for split, key in all_keys:
+        roles = {r: indexes[r].get((split, key), []) for r in ROLES}
+        duplicate = [r for r in ROLES if len(roles[r]) > 1]
+        absent = [r for r in ROLES if not roles[r]]
+        row = {"split": split, "pair_id": key}
+        for r in ROLES:
+            row[r] = relative_name(roles[r][0], root) if len(roles[r]) == 1 else ""
+        row["status"] = "DUPLICATE" if duplicate else ("INCOMPLETE" if absent else "COMPLETE")
+        row["missing"] = ";".join(absent)
+        row["duplicate_roles"] = ";".join(duplicate)
+        pairs.append(row)
+        if absent:
+            incomplete.append(f"{split}/{key}: missing {','.join(absent)}")
+        if duplicate:
+            duplicates.append(f"{split}/{key}: duplicate {','.join(duplicate)}")
+    complete = [r for r in pairs if r["status"] == "COMPLETE"]
+    if not complete:
+        problems.append("没有发现完整五件套影像对：确认五类文件均已解压，以及文件名/目录能正确匹配。")
+    if duplicates:
+        problems.append(f"检测到 {len(duplicates)} 个存在重复键的样本组；未将其当作完整配对。")
+    if incomplete:
+        warnings.append(f"有 {len(incomplete)} 个样本缺失至少一个组成文件。")
+    if uncategorized:
+        warnings.append(f"{len(uncategorized)} 个图像文件无法自动识别角色；必要时使用五个显式目录参数。")
+    archive_files = sorted(
+        relative_name(p, root) for p in root.rglob("*")
+        if p.is_file() and p.suffix.lower() in {".zip", ".7z", ".rar", ".tar", ".gz"}
+    )
+    if archive_files and not any(selected[r] for r in ROLES):
+        problems.append("目录下只有压缩包/无可识别影像：请先在 data/HRSCD 内分别解压五组原始数据。")
+
+    sample_n = len(complete) if args.max_pairs == 0 else min(args.max_pairs, len(complete))
+    chosen = random.Random(20260917).sample(complete, sample_n) if sample_n else []
+    metadata_errors, size_mismatch, crs_warnings, sample_shapes = [], [], [], Counter()
+    for row in chosen:
+        metadata = {}
+        for role in ROLES:
+            path = root / row[role]
+            info = inspect_metadata(path)
+            metadata[role] = info
+            if "error" in info:
+                metadata_errors.append(f"{row['split']}/{row['pair_id']} {role}: {info['error']}")
+        sizes = {(m.get("width"), m.get("height")) for m in metadata.values()
+                 if not m.get("error")}
+        if len(sizes) != 1 or any(m.get("error") for m in metadata.values()):
+            size_mismatch.append(f"{row['split']}/{row['pair_id']}: "
+                                 + str({r: (m.get('width'), m.get('height')) for r,m in metadata.items()}))
+        else:
+            sample_shapes.update([str(next(iter(sizes)))])
+        geo = [metadata[r] for r in ("t1_image", "t2_image")]
+        if all(x.get("crs") for x in geo):
+            if geo[0]["crs"] != geo[1]["crs"] or geo[0]["transform"] != geo[1]["transform"]:
+                crs_warnings.append(f"{row['split']}/{row['pair_id']}: T1/T2 CRS or geotransform differs.")
+    if metadata_errors:
+        warnings.append(f"抽样元数据读取错误 {len(metadata_errors)} 项（详见 JSON）。")
+    if size_mismatch:
+        warnings.append(f"抽样影像对尺寸/可读性异常 {len(size_mismatch)} 项（详见 JSON）。")
+    if crs_warnings:
+        warnings.append(f"抽样 T1/T2 空间参考不一致 {len(crs_warnings)} 项。")
+
+    label_examples = {}
+    for role in ("t1_label", "t2_label", "change_label"):
+        files = selected[role]
+        sample_files = random.Random(77).sample(files, min(len(files), args.label_files))
+        sampled = []
+        for path in sample_files:
+            h = label_histogram(path, args.sample_window)
+            check_one_label(role, h, warnings, relative_name(path, root))
+            sampled.append({"path": relative_name(path, root), **h})
+        label_examples[role] = sampled
+    return {
+        "dataset": "HRSCD original - PRELIMINARY AUDIT, NOT A FROZEN PROTOCOL",
+        "dataset_root": str(root.resolve()),
+        "official_reference": "https://rcdaudt.github.io/hrscd/",
+        "official_expected_classes": {str(k): v for k,v in HRSCD_CLASS_MAP.items()},
+        "official_expected_change_classes": {"0": "No change", "1": "Change"},
+        "role_file_counts": {r: len(selected[r]) for r in ROLES},
+        "unrecognized_image_files": len(uncategorized),
+        "unrecognized_examples": [relative_name(p, root) for p in uncategorized[:30]],
+        "archive_files": archive_files[:50],
+        "split_counts_complete_pairs": dict(Counter(row["split"] for row in complete)),
+        "candidate_pair_keys": len(all_keys),
+        "complete_pairs": len(complete),
+        "incomplete_pairs": len(incomplete),
+        "duplicate_pair_keys": len(duplicates),
+        "incomplete_examples": incomplete[:50],
+        "duplicate_examples": duplicates[:50],
+        "metadata_sampled_pairs": len(chosen),
+        "metadata_size_counts": dict(sample_shapes),
+        "metadata_errors": metadata_errors[:100],
+        "size_mismatch": size_mismatch[:100],
+        "georeference_warnings": crs_warnings[:100],
+        "label_pixel_samples": label_examples,
+        "warnings": warnings,
+        "problems": problems,
+        "protocol_note": "未定义官方 train/val/test 划分，也未生成训练补丁；在核对真实目录、标注、空间分组后另行冻结。",
+        "pairs": pairs,
+    }
+
+
+def save_report(audit: dict[str, Any], output_dir: Path):
+    output_dir.mkdir(parents=True, exist_ok=True)
+    pairs = audit["pairs"]
+    fields = ["split", "pair_id", *ROLES, "status", "missing", "duplicate_roles"]
+    with (output_dir/"hrscd_pair_manifest.csv").open("w", encoding="utf-8-sig", newline="") as fp:
+        writer = csv.DictWriter(fp, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(pairs)
+    payload = {k:v for k,v in audit.items() if k != "pairs"}
+    with (output_dir/"hrscd_dataset_audit.json").open("w", encoding="utf-8") as fp:
+        json.dump(payload, fp, ensure_ascii=False, indent=2)
+    lines = [
+        "HRSCD 数据集初检（只读，不修改原始数据）",
+        f"数据目录: {audit['dataset_root']}",
+        f"候选配对键: {audit['candidate_pair_keys']}",
+        f"完整配对: {audit['complete_pairs']}",
+        f"不完整: {audit['incomplete_pairs']}, 重复键: {audit['duplicate_pair_keys']}",
+        "五种文件数量:",
+        *[f"  {ROLE_NAMES[r]}: {audit['role_file_counts'][r]}" for r in ROLES],
+        f"未识别影像文件: {audit['unrecognized_image_files']}",
+        f"抽检配对元数据: {audit['metadata_sampled_pairs']}",
+        "现有 split 目录（仅识别现有名称；UNSPLIT 不是官方划分）:",
+        *[f"  {k}: {v}" for k,v in sorted(audit["split_counts_complete_pairs"].items())],
+        "正式训练前必须确认：标签编码、完整配对、地理重叠、真实划分、原始标注有效值。",
+        "问题:",
+        *([f"  - {e}" for e in audit["problems"]] or ["  - 无阻断性问题（仍需人工复核）"]),
+        "警告:",
+        *([f"  - {e}" for e in audit["warnings"]] or ["  - 无"]),
+    ]
+    (output_dir/"hrscd_audit_summary.txt").write_text("\n".join(lines)+"\n", encoding="utf-8")
+    return output_dir/"hrscd_audit_summary.txt"
+
+
+def build_parser():
+    ap = argparse.ArgumentParser(
+        description="HRSCD (2006/2012) paired imagery and labels preflight audit (read-only)")
+    ap.add_argument("--root", type=Path, required=True, help="Unpacked HRSCD dataset root")
+    ap.add_argument("--output", type=Path, default=Path("outputs/dataset_audit/HRSCD"))
+    ap.add_argument("--t1-images", help="Optional relative/absolute folder: T1 RGB images (2006)")
+    ap.add_argument("--t2-images", help="Optional relative/absolute folder: T2 RGB images (2012)")
+    ap.add_argument("--t1-labels", help="Optional relative/absolute folder: T1 land cover maps")
+    ap.add_argument("--t2-labels", help="Optional relative/absolute folder: T2 land cover maps")
+    ap.add_argument("--change-labels", help="Optional relative/absolute folder: binary change maps")
+    ap.add_argument("--max-pairs", type=int, default=20,
+                    help="Number of complete pairs checked for raster metadata; 0 = all (default: 20)")
+    ap.add_argument("--label-files", type=int, default=3,
+                    help="Files per label role sampled for pixel values (default: 3)")
+    ap.add_argument("--sample-window", type=int, default=256,
+                    help="Width/height of each sampled label window (default: 256)")
+    ap.add_argument("--strict", action="store_true",
+                    help="Non-zero exit also for missing/duplicate/mismatched samples and warnings")
+    return ap
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
+    if args.max_pairs < 0 or args.label_files < 0 or args.sample_window < 1:
+        print("[ERROR] --max-pairs and --label-files must be nonnegative; --sample-window >= 1.",
+              file=sys.stderr)
+        return 2
+    root = args.root.expanduser().resolve()
+    if not root.is_dir():
+        print(f"[ERROR] dataset root does not exist or is not a directory: {root}", file=sys.stderr)
+        return 2
+    audit = compute_audit(root, args)
+    summary = save_report(audit, args.output)
+    print(summary.read_text(encoding="utf-8"))
+    print("[OUTPUT] " + str(summary.resolve()))
+    print("[OUTPUT] " + str((args.output/"hrscd_dataset_audit.json").resolve()))
+    print("[OUTPUT] " + str((args.output/"hrscd_pair_manifest.csv").resolve()))
+    blocked = bool(audit["problems"]) or not audit["complete_pairs"]
+    if args.strict:
+        blocked |= bool(audit["warnings"])
+    print("[RESULT]", "REVIEW REQUIRED" if blocked else "INITIAL AUDIT FINISHED (manual protocol review required)")
+    return 2 if blocked else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

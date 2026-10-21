@@ -1,0 +1,51 @@
+diff --git a/tools/build_hrscd_cd0_protocol.py b/tools/build_hrscd_cd0_protocol.py
+index d576a5b..0f68835 100644
+--- a/tools/build_hrscd_cd0_protocol.py
++++ b/tools/build_hrscd_cd0_protocol.py
+@@ -37,6 +37,21 @@ NONKEY = {"2006", "2012", "image", "images", "img", "label", "labels", "land",
+ 
+ 
+ def canonical(stem: str) -> str:
++    # HRSCD's five archives do not use one identical filename convention.
++    # In particular, images_2006 contains names such as
++    #   14-2005-0415-6895-LA93.tif
++    # while the 2012 image and all labels use names such as
++    #   14-2012-0415-6895-LA93-0M50-E080.tif
++    # The stable tile identity is zone + tile row + tile column + projection;
++    # the acquisition year and resolution suffix must not be used for pairing.
++    m = re.match(
++        r"^(?P<zone>\d+)-20\d{2}-(?P<row>\d+)-(?P<col>\d+)-(?P<proj>la93)(?:-|$)",
++        stem.casefold(),
++    )
++    if m:
++        return "{}_{}_{}_{}".format(
++            m.group("zone"), m.group("row"), m.group("col"), m.group("proj")
++        )
+     tokens = re.findall(r"[a-z0-9]+", stem.casefold())
+     tokens = [s for s in tokens if s not in NONKEY]
+     return "_".join(tokens) or stem.casefold()
+diff --git a/tools/inspect_hrscd_dataset.py b/tools/inspect_hrscd_dataset.py
+index 12fafcd..19f3807 100644
+--- a/tools/inspect_hrscd_dataset.py
++++ b/tools/inspect_hrscd_dataset.py
+@@ -104,7 +104,19 @@ def auto_role(path: Path, root: Path) -> str | None:
+ 
+ 
+ def canonical_id(path: Path) -> str:
+-    # Match, for example: tile_001_2006.tif / land_cover_tile_001_2012.tif
++    # HRSCD archive-specific names differ between 2006 and 2012.  For example:
++    #   14-2005-0415-6895-LA93.tif
++    #   14-2012-0415-6895-LA93-0M50-E080.tif
++    # They refer to the same tile.  Pair by stable tile coordinates and
++    # projection, ignoring acquisition year and resolution suffix.
++    m = re.match(
++        r"^(?P<zone>\d+)-20\d{2}-(?P<row>\d+)-(?P<col>\d+)-(?P<proj>la93)(?:-|$)",
++        path.stem.casefold(),
++    )
++    if m:
++        return "{}_{}_{}_{}".format(
++            m.group("zone"), m.group("row"), m.group("col"), m.group("proj")
++        )
+     tokens = re.findall(r"[a-z0-9]+", path.stem.casefold())
+     filtered = [x for x in tokens if x not in STEM_IGNORE]
+     return "_".join(filtered) or path.stem.casefold()
