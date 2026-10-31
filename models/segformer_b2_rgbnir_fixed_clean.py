@@ -312,9 +312,18 @@ def build_model_b2_rgbnir_fixed_clean(
     fixed_strength: float = DEFAULT_FIXED_NIR_STRENGTH,
 ) -> Tuple[SegFormerB2RGBNIRFixed, Dict[str, Any]]:
     _ = Path(project_root).resolve()
+    local_checkpoint = Path(checkpoint)
+    is_valid_local_checkpoint = (
+        local_checkpoint.is_dir()
+        and (local_checkpoint / "config.json").is_file()
+        and (
+            (local_checkpoint / "pytorch_model.bin").is_file()
+            or (local_checkpoint / "model.safetensors").is_file()
+        )
+    )
     require(
-        checkpoint == DEFAULT_CHECKPOINT,
-        "Clean fixed-fusion protocol requires the project's standard pretrained B2 checkpoint.",
+        checkpoint == DEFAULT_CHECKPOINT or is_valid_local_checkpoint,
+        "Clean fixed-fusion protocol requires the standard ADE20K B2 checkpoint ID or a valid local checkpoint directory.",
     )
 
     id2label = {index: name for index, name in enumerate(CLASS_NAMES)}

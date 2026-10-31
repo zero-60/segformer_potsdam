@@ -56,3 +56,5 @@ __pycache__/
 
 # Logs
 *.log
+*.bak
+*.before_key_fix
