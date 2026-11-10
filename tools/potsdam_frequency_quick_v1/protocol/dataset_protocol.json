@@ -1,0 +1,280 @@
+{
+  "audit_fingerprints": {},
+  "corruption_separation_rule": {
+    "future_rule": "robustness corruption is separate from train augmentation; RGB only; NIR and GT unchanged",
+    "implemented_here": false
+  },
+  "data_source": {
+    "channel_semantics": "rgbir_semantics.json only",
+    "gt": "canonical path from labels_manifest.json only",
+    "rgbir": "data/raw/potsdam/Potsdam/4_Ortho_RGBIR (resolved directory must be named 4_Ortho_RGBIR)",
+    "split": "tile_split.json only; select splits.train/val/test; never infer membership from labels_manifest or all tiles"
+  },
+  "labels": {
+    "classes": [
+      {
+        "id": 0,
+        "name": "Impervious surfaces",
+        "rgb": [
+          255,
+          255,
+          255
+        ]
+      },
+      {
+        "id": 1,
+        "name": "Building",
+        "rgb": [
+          0,
+          0,
+          255
+        ]
+      },
+      {
+        "id": 2,
+        "name": "Low vegetation",
+        "rgb": [
+          0,
+          255,
+          255
+        ]
+      },
+      {
+        "id": 3,
+        "name": "Tree",
+        "rgb": [
+          0,
+          255,
+          0
+        ]
+      },
+      {
+        "id": 4,
+        "name": "Car",
+        "rgb": [
+          255,
+          255,
+          0
+        ]
+      },
+      {
+        "id": 5,
+        "name": "Clutter/background",
+        "rgb": [
+          255,
+          0,
+          0
+        ]
+      }
+    ],
+    "expected_ignore_pixels": 0,
+    "ignore_index_reserved_sentinel": 255,
+    "num_classes": 6,
+    "reduce_labels": false,
+    "unknown_rgb_policy": "hard_error"
+  },
+  "metrics": {
+    "do_not_average_patch_miou": true,
+    "do_not_use_mean_tile_miou_as_primary": true,
+    "per_tile_confusion_and_iou": true,
+    "primary_miou": "6-class mIoU from global split confusion matrix"
+  },
+  "normalization": {
+    "nir": {
+      "mean": 0.3854390870128298,
+      "pixel_count": 648000000,
+      "scale_divisor": 255.0,
+      "scope": "fixed reference from parent 18 training tiles; NOT recalculated from subset; no parent val/test pixels",
+      "std": 0.14614233541588012,
+      "std_definition": "population_std",
+      "sum": 249764528.38431373,
+      "sumsq": 110108725.05476321,
+      "value_domain_after_scaling": "[0,1]",
+      "reference_train_tiles": [
+        "2_11",
+        "2_12",
+        "3_10",
+        "3_11",
+        "4_12",
+        "5_10",
+        "5_12",
+        "6_7",
+        "6_8",
+        "6_9",
+        "6_10",
+        "6_11",
+        "6_12",
+        "7_7",
+        "7_8",
+        "7_9",
+        "7_10",
+        "7_12"
+      ],
+      "subset_recomputed": false
+    },
+    "rgb": {
+      "input_scale_divisor": 255.0,
+      "mean": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "scope": "ImageNet pretrained RGB normalization",
+      "std": [
+        0.229,
+        0.224,
+        0.225
+      ]
+    }
+  },
+  "protocol_version": "Potsdam Frequency Quick Protocol v1",
+  "script_version": "quick-1.0",
+  "source_metadata_sha256": {
+    "labels_manifest.json": "1eef3c08fddd417b573192b3f39196c0fb1baa5e2f2cb7ac5d2d01c1a8624f4c",
+    "rgbir_semantics.json": "db99773870648703224090159381219090126e432f3084d04844c2ffa3d4c3a8",
+    "tile_split.json": "cb637f469dc33eeeff8c1fbd9754554b29c21a15903532864955b13ae7489756"
+  },
+  "split": {
+    "train": [
+      "2_12",
+      "4_12",
+      "5_10",
+      "6_9",
+      "6_11",
+      "7_9"
+    ],
+    "val": [
+      "4_10",
+      "5_11"
+    ],
+    "test": [
+      "2_13",
+      "2_14",
+      "3_13",
+      "3_14",
+      "4_13",
+      "4_14",
+      "4_15",
+      "5_13",
+      "5_14",
+      "5_15",
+      "6_13",
+      "6_14",
+      "6_15",
+      "7_13"
+    ]
+  },
+  "status": "METADATA_CHECKS_PASS_REQUIRES_TRAINER_INTEGRATION",
+  "training_sampling": {
+    "cat_max_ratio": 0.75,
+    "coordinate_rng": "SHA256 stateless rejection sampler keyed by (seed,epoch,tile_id,sample_slot,candidate_id)",
+    "crop_size": [
+      512,
+      512
+    ],
+    "crops_per_tile_per_epoch": 32,
+    "d4": {
+      "codes": {
+        "0": "rot90 k=0",
+        "1": "rot90 k=1",
+        "2": "rot90 k=2",
+        "3": "rot90 k=3",
+        "4": "fliplr(rot90 k=0)",
+        "5": "fliplr(rot90 k=1)",
+        "6": "fliplr(rot90 k=2)",
+        "7": "fliplr(rot90 k=3)"
+      },
+      "enabled": true,
+      "rng": "SHA256 stateless rejection sampler keyed by (seed,epoch,tile_id,sample_slot)"
+    },
+    "data_seed": 20260917,
+    "fallback_rule": "minimum dominant-class ratio among 10 candidates",
+    "max_candidates": 10,
+    "photometric_augmentation": false,
+    "resize_or_scale_jitter": false,
+    "samples_per_epoch": 192,
+    "tile_balanced": true
+  },
+  "validation_test_inference": {
+    "crop_size": [
+      512,
+      512
+    ],
+    "edge_rule": "append L-crop if regular stride does not land on final anchor",
+    "overlap_fusion": "uniform mean-logit accumulation",
+    "random_crop": false,
+    "starts": [
+      0,
+      384,
+      768,
+      1152,
+      1536,
+      1920,
+      2304,
+      2688,
+      3072,
+      3456,
+      3840,
+      4224,
+      4608,
+      4992,
+      5376,
+      5488
+    ],
+    "starts_per_axis": 16,
+    "stride": [
+      384,
+      384
+    ],
+    "tile_size": [
+      6000,
+      6000
+    ],
+    "tta": false,
+    "window_coordinate_order": "y-major then x-major",
+    "window_coordinates_sha256": "58a2f857c7d84adb0a17f2ce0f5b1802452886127963f42fd9ac125c7dd84e1a",
+    "windows_per_tile": 256
+  },
+  "parent_protocol_sha256": "42b5f0469207e3ca5af647374d271447443c4388df1dfb5835086a91718a8479",
+  "invalidated_parent_audits": [
+    "D4 real crop audit",
+    "sampling schedule audit",
+    "parent raw file audit status"
+  ],
+  "unused_tiles": [
+    "2_10",
+    "2_11",
+    "3_10",
+    "3_11",
+    "3_12",
+    "4_11",
+    "5_12",
+    "6_7",
+    "6_8",
+    "6_10",
+    "6_12",
+    "7_7",
+    "7_8",
+    "7_10",
+    "7_11",
+    "7_12"
+  ],
+  "experiment_plan": {
+    "purpose": "module screening; not final full-data benchmark",
+    "suggested_epochs": 30,
+    "validation_every_epochs": 5,
+    "final_epoch_validation": true,
+    "test_during_module_selection": false,
+    "seed": 20260917,
+    "baseline_and_frequency_must_share": [
+      "split",
+      "sampling",
+      "augmentation",
+      "normalization",
+      "pretrained weights",
+      "training budget",
+      "evaluation fusion"
+    ],
+    "trainer_auto_configured": false
+  }
+}
