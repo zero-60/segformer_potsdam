@@ -1,0 +1,84 @@
+{
+  "splits": {
+    "train": [
+      "2_12",
+      "4_12",
+      "5_10",
+      "6_9",
+      "6_11",
+      "7_9"
+    ],
+    "val": [
+      "4_10",
+      "5_11"
+    ],
+    "test": [
+      "2_13",
+      "2_14",
+      "3_13",
+      "3_14",
+      "4_13",
+      "4_14",
+      "4_15",
+      "5_13",
+      "5_14",
+      "5_15",
+      "6_13",
+      "6_14",
+      "6_15",
+      "7_13"
+    ]
+  },
+  "unused": [
+    "2_10",
+    "2_11",
+    "3_10",
+    "3_11",
+    "3_12",
+    "4_11",
+    "5_12",
+    "6_7",
+    "6_8",
+    "6_10",
+    "6_12",
+    "7_7",
+    "7_8",
+    "7_10",
+    "7_11",
+    "7_12"
+  ],
+  "checks": {
+    "split_disjoint": true,
+    "train_subset_of_parent_train": true,
+    "val_subset_of_parent_val": true,
+    "test_unchanged": true,
+    "six_classes_present_in_train_and_val": true,
+    "raw_image_audit_performed": false
+  },
+  "selection": {
+    "train": {
+      "method": "exhaustive_minimax_absolute_class_fraction_error",
+      "target": "original train split distribution",
+      "pool_size": 18,
+      "subset_size": 6,
+      "candidate_count": 18564,
+      "max_abs_fraction_error": 0.002302827160493827,
+      "mean_abs_fraction_error": 0.0012390555555555633
+    },
+    "val": {
+      "method": "exhaustive_minimax_absolute_class_fraction_error",
+      "target": "original val split distribution",
+      "pool_size": 6,
+      "subset_size": 2,
+      "candidate_count": 15,
+      "max_abs_fraction_error": 0.04121625000000001,
+      "mean_abs_fraction_error": 0.019609737654320992
+    }
+  },
+  "samples_per_epoch": 192,
+  "validation_windows": 512,
+  "full_test_windows": 3584,
+  "nir_subset_recomputed": false,
+  "training_run_performed": false,
+  "raw_label_files_reaudited": false
+}

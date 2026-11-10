@@ -1,0 +1,495 @@
+{
+  "schema_version": 1,
+  "dataset": "ISPRS Potsdam",
+  "created_at": "2026-11-06T23:25:29.872735+08:00",
+  "status": "METADATA_CHECKS_PASS_RAW_FILES_NOT_VERIFIED",
+  "split_policy": "Frequency quick experiment v1. Select 6 original train and 2 original val tiles independently using class counts; keep original 14 test tiles frozen. Unselected development tiles are unused. Do not consult test metrics during module selection.",
+  "inputs": {
+    "parent_tile_split_sha256": "391432d65a96c92ae2103c9cc435fee0758bf77b40e8de43d3d1dfafd07d7199",
+    "labels_manifest_sha256": "1eef3c08fddd417b573192b3f39196c0fb1baa5e2f2cb7ac5d2d01c1a8624f4c"
+  },
+  "classes": [
+    "impervious_surface",
+    "building",
+    "low_vegetation",
+    "tree",
+    "car",
+    "clutter_background"
+  ],
+  "source_counts": {
+    "5_Labels_for_participants": 24,
+    "5_Labels_all": 14
+  },
+  "counts": {
+    "train": 6,
+    "val": 2,
+    "test": 14,
+    "total": 22,
+    "unused": 16,
+    "source_total": 38
+  },
+  "splits": {
+    "train": [
+      "2_12",
+      "4_12",
+      "5_10",
+      "6_9",
+      "6_11",
+      "7_9"
+    ],
+    "val": [
+      "4_10",
+      "5_11"
+    ],
+    "test": [
+      "2_13",
+      "2_14",
+      "3_13",
+      "3_14",
+      "4_13",
+      "4_14",
+      "4_15",
+      "5_13",
+      "5_14",
+      "5_15",
+      "6_13",
+      "6_14",
+      "6_15",
+      "7_13"
+    ]
+  },
+  "statistics": {
+    "train": {
+      "tile_count": 6,
+      "pixel_count": 216000000,
+      "class_pixel_counts": {
+        "impervious_surface": 61170453,
+        "building": 57356192,
+        "low_vegetation": 51046435,
+        "tree": 31388393,
+        "car": 3733874,
+        "clutter_background": 11304653
+      },
+      "class_fractions": {
+        "impervious_surface": 0.2831965416666667,
+        "building": 0.2655379259259259,
+        "low_vegetation": 0.23632608796296295,
+        "tree": 0.14531663425925925,
+        "car": 0.017286453703703703,
+        "clutter_background": 0.05233635648148148
+      }
+    },
+    "val": {
+      "tile_count": 2,
+      "pixel_count": 72000000,
+      "class_pixel_counts": {
+        "impervious_surface": 18146606,
+        "building": 22128075,
+        "low_vegetation": 15449030,
+        "tree": 11641181,
+        "car": 1370063,
+        "clutter_background": 3265045
+      },
+      "class_fractions": {
+        "impervious_surface": 0.2520361944444444,
+        "building": 0.307334375,
+        "low_vegetation": 0.21456986111111112,
+        "tree": 0.16168306944444444,
+        "car": 0.019028652777777776,
+        "clutter_background": 0.04534784722222222
+      }
+    },
+    "test": {
+      "tile_count": 14,
+      "pixel_count": 504000000,
+      "class_pixel_counts": {
+        "impervious_surface": 158614521,
+        "building": 120553967,
+        "low_vegetation": 105884497,
+        "tree": 85888156,
+        "car": 9903123,
+        "clutter_background": 23155736
+      },
+      "class_fractions": {
+        "impervious_surface": 0.31471135119047616,
+        "building": 0.23919437896825396,
+        "low_vegetation": 0.2100882876984127,
+        "tree": 0.17041300793650793,
+        "car": 0.01964905357142857,
+        "clutter_background": 0.045943920634920636
+      }
+    },
+    "unused": {
+      "tile_count": 16,
+      "pixel_count": 576000000,
+      "class_pixel_counts": {
+        "impervious_surface": 166613386,
+        "building": 151391585,
+        "low_vegetation": 136863198,
+        "tree": 83323396,
+        "car": 9493730,
+        "clutter_background": 28314705
+      },
+      "class_fractions": {
+        "impervious_surface": 0.2892593506944444,
+        "building": 0.2628326128472222,
+        "low_vegetation": 0.23760971875,
+        "tree": 0.14465867361111112,
+        "car": 0.016482170138888887,
+        "clutter_background": 0.049157473958333336
+      }
+    }
+  },
+  "checks": {
+    "split_disjoint": true,
+    "train_subset_of_parent_train": true,
+    "val_subset_of_parent_val": true,
+    "test_unchanged": true,
+    "six_classes_present_in_train_and_val": true,
+    "raw_image_audit_performed": false
+  },
+  "tiles": [
+    {
+      "tile_id": "2_10",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_2_10_label.tif",
+      "file_sha256": "333d6e04e2e18e3e9097dd17a16bfbdf0f8876b374893fdb224f4628b1d2376c",
+      "pixel_sha256": "ddae77cbc6a7092fae6e55e4253329e4766278bcf7cc39ff85ef6ab17aabd628"
+    },
+    {
+      "tile_id": "2_11",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_2_11_label.tif",
+      "file_sha256": "1e901573797f3901fd1904ac1ea86c3a9705bc1e5d76ed31a39f16e143f868b1",
+      "pixel_sha256": "49260da73090de9405b1573bb91059f6a1f8774374c69a6f31fb029d9183416d"
+    },
+    {
+      "tile_id": "2_12",
+      "split": "train",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_2_12_label.tif",
+      "file_sha256": "32343de6529a5510d3883c95bbe1f4b5576de1fed55f76593013dad4d2c5f012",
+      "pixel_sha256": "077e1948d4e55b3cef3ffdab11ea9c082894c2eb149bb9bb47a6a1f9ce27961e"
+    },
+    {
+      "tile_id": "2_13",
+      "split": "test",
+      "gt_source": "5_Labels_all",
+      "gt_relpath": "_expanded/5_Labels_all/top_potsdam_2_13_label.tif",
+      "file_sha256": "27963d269e23dbeab43839c23b3d6c914f748f9b14f9010f53e32bde880a683a",
+      "pixel_sha256": "4d2567f62c2ab10ece9a8c8f0bcf8ab762d24f76b51d49b1b414eaab1f5d3e0e"
+    },
+    {
+      "tile_id": "2_14",
+      "split": "test",
+      "gt_source": "5_Labels_all",
+      "gt_relpath": "_expanded/5_Labels_all/top_potsdam_2_14_label.tif",
+      "file_sha256": "1abed95e8514c68d76d9e9cd7c9896eacde1f066224c424915f22f445f78495d",
+      "pixel_sha256": "980235499f36899b146c7c6039bcd5f25a12445aacbac7d8d95091ac0bed2876"
+    },
+    {
+      "tile_id": "3_10",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_3_10_label.tif",
+      "file_sha256": "0a5d30c00b1d0e9774e23f759a366aab7db9419b9e65eece11bfe918cacee1c6",
+      "pixel_sha256": "b167f9fbd9c52067c08172ccd28c90d17fee73a2ba96c012cc8e8a2ec118165e"
+    },
+    {
+      "tile_id": "3_11",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_3_11_label.tif",
+      "file_sha256": "0409e5e48290ee6f7ac239c3b066c500385864fff9af31595e6e3a12e6348d43",
+      "pixel_sha256": "15f4f00a4421e9a0c0456285c87c8608a3b18ed617c944c3258c4bbb3389a53c"
+    },
+    {
+      "tile_id": "3_12",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_3_12_label.tif",
+      "file_sha256": "79802dfd4ad837c4f3afb5365d4a2baee7a743dbf56e622d2e82bcf888f984ae",
+      "pixel_sha256": "f739aba90fade536e2636d7f94cad5744e44fe0901d040d6228459564f7f03d2"
+    },
+    {
+      "tile_id": "3_13",
+      "split": "test",
+      "gt_source": "5_Labels_all",
+      "gt_relpath": "_expanded/5_Labels_all/top_potsdam_3_13_label.tif",
+      "file_sha256": "85a5d0068a13bb8dc00e77e5ca2471824f4478399c68a4d7e87be595058d7a52",
+      "pixel_sha256": "bbe80fb4ace05a2ced309378a62d7abba64b0f498a8d439205d33bfca20a7591"
+    },
+    {
+      "tile_id": "3_14",
+      "split": "test",
+      "gt_source": "5_Labels_all",
+      "gt_relpath": "_expanded/5_Labels_all/top_potsdam_3_14_label.tif",
+      "file_sha256": "1c41275aa11aad06cd89d8bf08d57f2007c11cbdbcb411838bf8bb77bacacc30",
+      "pixel_sha256": "10702db9388d47a25852ab3d2b9c263a811640ef629f7a1070f01f2532a7c32d"
+    },
+    {
+      "tile_id": "4_10",
+      "split": "val",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_4_10_label.tif",
+      "file_sha256": "407c3ba4f6409e039c27602d29bbb8f6d34967ad096de0556f77752e925ce698",
+      "pixel_sha256": "9723eaf7af64b15d4eda05eda874ae992e04bbc42ace693c3dca97a584d78d00"
+    },
+    {
+      "tile_id": "4_11",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_4_11_label.tif",
+      "file_sha256": "8e8adcce91254228a13ca54d4762fc9b426175427eb5dd1a252894a35d6bd0d3",
+      "pixel_sha256": "564ef56f594126bd92cda2cfc7364854fbda66db59d790a0686adc619c529755"
+    },
+    {
+      "tile_id": "4_12",
+      "split": "train",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_4_12_label.tif",
+      "file_sha256": "cca7f6b180f41acad75555ab758064979f01d53939bd1519c2f6f1290b618fa7",
+      "pixel_sha256": "c55d35bd11cffe53455ab78690a9630731447e89fc4761692aeef37f25df765b"
+    },
+    {
+      "tile_id": "4_13",
+      "split": "test",
+      "gt_source": "5_Labels_all",
+      "gt_relpath": "_expanded/5_Labels_all/top_potsdam_4_13_label.tif",
+      "file_sha256": "458eed04dd1b7ca42a2d5a55583f01d0a992d7349bdbc3641d5b20d522ddd5a1",
+      "pixel_sha256": "e0cb803da0449a049a8b4721a257b45d19480069ec5102e60c96a7d6c281fc58"
+    },
+    {
+      "tile_id": "4_14",
+      "split": "test",
+      "gt_source": "5_Labels_all",
+      "gt_relpath": "_expanded/5_Labels_all/top_potsdam_4_14_label.tif",
+      "file_sha256": "2c894bbc22b50ad4865d7b38297f049f2789a50c6d16378f7d98a1a8f52ec414",
+      "pixel_sha256": "232b96b73060c94193c0c1b73c49f3cd1d3a51979c18525fd0c08bd305ba5121"
+    },
+    {
+      "tile_id": "4_15",
+      "split": "test",
+      "gt_source": "5_Labels_all",
+      "gt_relpath": "_expanded/5_Labels_all/top_potsdam_4_15_label.tif",
+      "file_sha256": "da7b69253023a1eee858b6856e01f3d727286635a512b3f23dfce9768ee9d03f",
+      "pixel_sha256": "5734ac496d7e39c1ff403310f2bcce8610e18dcec6a17a437465992528cf5a87"
+    },
+    {
+      "tile_id": "5_10",
+      "split": "train",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_5_10_label.tif",
+      "file_sha256": "34560c32e03be2603c6b41e03f32a9ba0c158cf5fc89db226eda1ca05e02b6a1",
+      "pixel_sha256": "fec43f32a4da0911edd410034a050c2c0994a8637377e8c342adf3abd386eed6"
+    },
+    {
+      "tile_id": "5_11",
+      "split": "val",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_5_11_label.tif",
+      "file_sha256": "8bcf984831e85b706d3e493cbdf1614f76edb03c471f4055dceb16b6e280c0a9",
+      "pixel_sha256": "e1ba0b089c08aa5ca1853621372d5e1647078c465d7d9daaa192d1ee9bbd7f74"
+    },
+    {
+      "tile_id": "5_12",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_5_12_label.tif",
+      "file_sha256": "53210cdfeeadd3612320d2a7de96f985e94ef8618657c1026ed0a877e1826526",
+      "pixel_sha256": "74cfe11c478b680fcef327c77279f1fb8805a9cd6971f1d2b5a36ed20532424a"
+    },
+    {
+      "tile_id": "5_13",
+      "split": "test",
+      "gt_source": "5_Labels_all",
+      "gt_relpath": "_expanded/5_Labels_all/top_potsdam_5_13_label.tif",
+      "file_sha256": "621bb24938d045ff4d6add1169949086ea6c5dcf91d14bdbb07733eed3f70304",
+      "pixel_sha256": "2be82c53acb64d124a717b55db9f5e518546c9c031dd2fb21af4732c3392f2b4"
+    },
+    {
+      "tile_id": "5_14",
+      "split": "test",
+      "gt_source": "5_Labels_all",
+      "gt_relpath": "_expanded/5_Labels_all/top_potsdam_5_14_label.tif",
+      "file_sha256": "048d5a726bfe0891183bc2de31059db1cfb3973dfa76d981b6a27e8b9113a6a5",
+      "pixel_sha256": "00bdcd24f4ab10aa568aad4f4793e8dce8e0584ab368d43096b1847b94c3d83e"
+    },
+    {
+      "tile_id": "5_15",
+      "split": "test",
+      "gt_source": "5_Labels_all",
+      "gt_relpath": "_expanded/5_Labels_all/top_potsdam_5_15_label.tif",
+      "file_sha256": "e1ec758c8fe5203f2140b96143221ca7eeb778e18b14f2cb23a92af71090ed63",
+      "pixel_sha256": "777af0565fa92310be44237a236bacd81f20245aeb4d17d43aac44e60639d9cd"
+    },
+    {
+      "tile_id": "6_7",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_6_7_label.tif",
+      "file_sha256": "522a36d1196f041bb8d260e0c189f459639e590ad60659e70c81ca4829184670",
+      "pixel_sha256": "06c7b4db4c38f87d95944f1281d322c5a0c6a1786daac836b1c7c303a3305e79"
+    },
+    {
+      "tile_id": "6_8",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_6_8_label.tif",
+      "file_sha256": "2882f9d14135d787728f1427283da9f14d2b0eb8ab24ec46900372dac921b318",
+      "pixel_sha256": "c459f849d03935c8850eb7512df1f115049ddab8d96fd9cdd7c74f8e42965d2e"
+    },
+    {
+      "tile_id": "6_9",
+      "split": "train",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_6_9_label.tif",
+      "file_sha256": "8e227d73646f044b0d70c8e2109d5aa2a4f84c92790439ecadcda2d8c247be35",
+      "pixel_sha256": "8b75dd2eafde90f9c3b1df343e8a756e97d9cd5de3ec9cc54cfc03799f98d6cd"
+    },
+    {
+      "tile_id": "6_10",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_6_10_label.tif",
+      "file_sha256": "0f2feb7ef710e99062393d9cbec7c29f0427b2340e6ce3b11c5a64f5130306c3",
+      "pixel_sha256": "2b9dd8a7900ea5cf2f8957aeab122632e115e3821cb4334c1c05b10de7a7c320"
+    },
+    {
+      "tile_id": "6_11",
+      "split": "train",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_6_11_label.tif",
+      "file_sha256": "e25e120cd9c5fa48e6966f2e5ab64c109f698afcb083856424878d0dae4dda99",
+      "pixel_sha256": "961ceb0c553ad8618189a4e0ff3fecd95e4096ec842f98413f76c8d81729064a"
+    },
+    {
+      "tile_id": "6_12",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_6_12_label.tif",
+      "file_sha256": "88f3c46ffb368ab42b845866cd096ea62d56a665125a1a3b174126b59d54d57d",
+      "pixel_sha256": "a7cd4193ba428c1fac4f1d5333980751e53c98345fa30d6d54a9117d90fb40c0"
+    },
+    {
+      "tile_id": "6_13",
+      "split": "test",
+      "gt_source": "5_Labels_all",
+      "gt_relpath": "_expanded/5_Labels_all/top_potsdam_6_13_label.tif",
+      "file_sha256": "5b5dc6e4707edbde32896b99e95acb555e9e284f5e365ae0d6579274890a4f6a",
+      "pixel_sha256": "452882482cdec17b9fbe548990d26bddf2e1aaa41464e5be1075398c1988c6d1"
+    },
+    {
+      "tile_id": "6_14",
+      "split": "test",
+      "gt_source": "5_Labels_all",
+      "gt_relpath": "_expanded/5_Labels_all/top_potsdam_6_14_label.tif",
+      "file_sha256": "4dcac60efff42af2c15cddcc914156b9c2399f6926454081d6308b7d9b91aa5f",
+      "pixel_sha256": "911cd3175fb654812af00d03cc2089b5a21557326e31c14f9636030160428140"
+    },
+    {
+      "tile_id": "6_15",
+      "split": "test",
+      "gt_source": "5_Labels_all",
+      "gt_relpath": "_expanded/5_Labels_all/top_potsdam_6_15_label.tif",
+      "file_sha256": "b06a61bf4ea924c10b850a2bc266db0eb7719adac74242ed900d60bdeba2c9af",
+      "pixel_sha256": "2a644b420e5e355279066430b1f7b4ebe30880d52eacb215302d5dd68f1d772c"
+    },
+    {
+      "tile_id": "7_7",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_7_7_label.tif",
+      "file_sha256": "f9bc411584598f23cbcdc6a9d9db70354ff77c63e32b14259a2de81365fcd062",
+      "pixel_sha256": "e4e5c5115b5c3ccc3fb9a21c63fdff3e76d79e440fbc300ab21ed2ff7aed6785"
+    },
+    {
+      "tile_id": "7_8",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_7_8_label.tif",
+      "file_sha256": "ff43415bf6e97e19eea697aab98559e235d7efc8c6ec7d37b661c90db0650100",
+      "pixel_sha256": "36fdfd8e6dde50711f6e81944f78fb8118e7b1be6fde50b5fedf39defd6aa2bf"
+    },
+    {
+      "tile_id": "7_9",
+      "split": "train",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_7_9_label.tif",
+      "file_sha256": "2a8d17d60d350029c82695b795eac2da17b427edb81ed5eb1fceacbf9da2c1b9",
+      "pixel_sha256": "41042f6618fae05c278392c22bfe7b0534f31ae3e7f16e9f659d64b6054ea015"
+    },
+    {
+      "tile_id": "7_10",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_7_10_label.tif",
+      "file_sha256": "ec55a714514bb2848f9ab5e4ca16decf09e30eecbdf833b75a6c2f6b6b9cfe6e",
+      "pixel_sha256": "a0036bf4d6e60071acafb2f140bdb99110c0f8e906e0a8537be97f4f2b0fd970"
+    },
+    {
+      "tile_id": "7_11",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_7_11_label.tif",
+      "file_sha256": "84a09938aff6f0bb4a36349042413642fde26cd1c87fe492860f872f3811f77d",
+      "pixel_sha256": "12bc2ea991cfcdc4d091b3f495788b78646e96e6329479cf3a61ad7ba0c10c8f"
+    },
+    {
+      "tile_id": "7_12",
+      "split": "unused",
+      "gt_source": "5_Labels_for_participants",
+      "gt_relpath": "_expanded/5_Labels_for_participants/top_potsdam_7_12_label.tif",
+      "file_sha256": "4d4d7bb452eafa71a7a67cb9514d4e69a18500c7289bfc34737d11c4e387c3c4",
+      "pixel_sha256": "e20bfbd470c1cfc3023e53015722653077a69a219847cb009ce27ad7bb705a9c"
+    },
+    {
+      "tile_id": "7_13",
+      "split": "test",
+      "gt_source": "5_Labels_all",
+      "gt_relpath": "_expanded/5_Labels_all/top_potsdam_7_13_label.tif",
+      "file_sha256": "49657bf8223bde45825b2c83221134b75cafe707725cb0cd345dd6a80b8ed01b",
+      "pixel_sha256": "1e9f21336baf4f28471d63264f931bf57f9e60fed1e86fc8a3b1a0c1f3f7f891"
+    }
+  ],
+  "unused_tiles": [
+    "2_10",
+    "2_11",
+    "3_10",
+    "3_11",
+    "3_12",
+    "4_11",
+    "5_12",
+    "6_7",
+    "6_8",
+    "6_10",
+    "6_12",
+    "7_7",
+    "7_8",
+    "7_10",
+    "7_11",
+    "7_12"
+  ],
+  "subset_selection": {
+    "train": {
+      "method": "exhaustive_minimax_absolute_class_fraction_error",
+      "target": "original train split distribution",
+      "pool_size": 18,
+      "subset_size": 6,
+      "candidate_count": 18564,
+      "max_abs_fraction_error": 0.002302827160493827,
+      "mean_abs_fraction_error": 0.0012390555555555633
+    },
+    "val": {
+      "method": "exhaustive_minimax_absolute_class_fraction_error",
+      "target": "original val split distribution",
+      "pool_size": 6,
+      "subset_size": 2,
+      "candidate_count": 15,
+      "max_abs_fraction_error": 0.04121625000000001,
+      "mean_abs_fraction_error": 0.019609737654320992
+    }
+  }
+}
